@@ -1,0 +1,22 @@
+
+services:
+  db:
+    image: postgres:17
+    container_name: job_tracker_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: job_tracker
+      POSTGRES_USER: job_tracker_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U job_tracker_user -d job_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
