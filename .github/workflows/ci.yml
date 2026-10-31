@@ -1,0 +1,61 @@
+
+name: Django CI
+
+on:
+  push:
+    branches:
+      - "**"
+
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: job_tracker
+          POSTGRES_USER: job_tracker_user
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U job_tracker_user -d job_tracker"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_PASSWORD: postgres
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Check Django configuration
+        run: python backend/src/manage.py check
+
+      - name: Check for missing migrations
+        run: python backend/src/manage.py makemigrations --check --dry-run
+
+      - name: Apply database migrations
+        run: python backend/src/manage.py migrate --noinput
+
+      - name: Run automated tests
+        working-directory: backend/src
+        run: python manage.py test
