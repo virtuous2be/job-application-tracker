@@ -2,6 +2,8 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APITestCase
 
 from .models import JobApplication
 
@@ -64,3 +66,69 @@ class JobApplicationModelTests(TestCase):
 
         with self.assertRaises(ValidationError):
             application.full_clean()
+
+
+
+class JobApplicationAPITests(APITestCase):
+
+    def setUp(self):
+        """Create a reusable job application for API tests."""
+        self.application = JobApplication.objects.create(
+            company_name="Microsoft",
+            job_title="Junior Software Developer",
+        )
+
+        self.list_url = "/api/applications/"
+        self.detail_url = f"/api/applications/{self.application.id}/"
+
+    def test_list_applications(self):
+        """The API should return all job applications."""
+        response = self.client.get(self.list_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_create_application(self):
+        """The API should allow users to create a job application."""
+        data = {
+            "company_name": "Google",
+            "job_title": "Python Developer",
+            "status": "saved",
+        }
+
+        response = self.client.post(self.list_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(JobApplication.objects.count(), 2)
+        self.assertEqual(response.data["company_name"], "Google")
+
+    def test_retrieve_application(self):
+        """The API should return one specific job application."""
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["company_name"], "Microsoft")
+
+    def test_update_application(self):
+        """The API should allow updating selected application fields."""
+        data = {
+            "status": "interview",
+        }
+
+        response = self.client.patch(
+            self.detail_url,
+            data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, "interview")
+
+    def test_delete_application(self):
+        """The API should allow deleting a job application."""
+        response = self.client.delete(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(JobApplication.objects.count(), 0)
